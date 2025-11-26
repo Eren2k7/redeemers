@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="logo.fw.jpeg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complete Your Profile – Redeemer’s University</title>
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  background:#eef1f7;
+  margin:0;
+  padding:0;
+}
+.container{
+  background:white;
+  max-width:450px;
+  margin:50px auto;
+  padding:25px;
+  border-radius:10px;
+  box-shadow:0 0 15px rgba(0,0,0,0.1);
+}
+h2{text-align:center;}
+input,select,textarea{
+  width:100%; padding:10px; margin-top:10px;
+  border:1px solid #ccc;border-radius:5px;
+}
+button{
+  width:100%;padding:12px;margin-top:15px;
+  background:#005bff;border:none;color:white;
+  font-size:17px;border-radius:5px;cursor:pointer;
+}
+button:hover{background:#003bb5;}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Student Profile Setup</h2>
+
+  <input type="file" id="profilePic" accept="image/*">
+  <input type="text" id="name" placeholder="Full Name">
+  <input type="number" id="age" placeholder="Age">
+
+  <select id="complexion">
+    <option value="">Complexion</option>
+    <option value="Fair">Fair</option>
+    <option value="Light Brown">Light Brown</option>
+    <option value="Dark">Dark</option>
+  </select>
+
+  <select id="faculty" onchange="loadDepartments()">
+    <option>Select Faculty</option>
+    <option value="Faculty of Natural Sciences">Faculty of Natural Sciences</option>
+    <option value="Faculty of Management Sciences">Faculty of Management Sciences</option>
+    <option value="Faculty of Built Environment Studies">Faculty of Built Environment Studies</option>
+    <option value="Faculty of Humanities">Faculty of Humanities</option>
+    <option value="Faculty of Social Sciences">Faculty of Social Sciences</option>
+    <option value="Faculty of Engineering">Faculty of Engineering</option>
+    <option value="Faculty of Basic Medical Sciences">Faculty of Basic Medical Sciences</option>
+    <option value="Faculty of Law">Faculty of Law</option>
+  </select>
+
+  <select id="department">
+    <option>Choose Department</option>
+  </select>
+
+  <textarea id="about" rows="4" placeholder="About you..."></textarea>
+
+  <button onclick="saveProfile()">Save & Continue → Directory</button>
+</div>
+
+
+<!-- FIREBASE v12.5.0 (correct format) -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
+  authDomain: "eren-c4b30.firebaseapp.com",
+  projectId: "eren-c4b30",
+  storageBucket: "eren-c4b30.appspot.com",   // FIXED
+  messagingSenderId: "91279547740",
+  appId: "1:91279547740:web:11cc9f1eb5423f94993599"
+};
+
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+
+/* ---------- redirect if user already filled profile ---------- */
+onAuthStateChanged(auth, async(user)=>{
+  if(!user) return window.location.href="login.html";
+
+  const check = await getDoc(doc(db,"students",user.uid));
+  if(check.exists()) window.location.href="directory.html"; // 🔥 go to directory automatically
+});
+
+
+/* ---------- load departments dynamically ---------- */
+window.loadDepartments = function(){
+  const fac = document.getElementById("faculty").value;
+  const dept = document.getElementById("department"); dept.innerHTML="";
+
+  const options = {
+"Faculty of Natural Sciences":["Computer Science","Applied Geophysics","Environmental Management & Toxicology","Geology","Industrial Chemistry","Microbiology","Meteorology","Physics with Electronics","Mathematics & Statistics"],
+"Faculty of Management Sciences":["Accounting","Banking & Finance","Business Administration","Insurance","Marketing","Public Administration","Transport Management"],
+"Faculty of Built Environment Studies":["Architecture","Building Technology","Estate Management","Quantity Surveying","Urban & Regional Planning","Surveying & Geoinformatics"],
+"Faculty of Humanities":["Christian Religious Studies","English","French","History & International Studies","Philosophy","Theatre Arts"],
+"Faculty of Social Sciences":["Economics","Mass Communication","Psychology","Political Science","Sociology","Tourism","Social Work"],
+"Faculty of Engineering":["Civil Engineering","Computer Engineering","Electrical & Electronics Engineering","Mechanical Engineering"],
+"Faculty of Basic Medical Sciences":["Biochemistry","Human Anatomy","Human Physiology","Nursing","Physiotherapy"],
+"Faculty of Law":["Law"]
+  };
+
+  (options[fac]||[]).forEach(x=>{
+    let o=document.createElement("option");
+    o.textContent=x; o.value=x; dept.appendChild(o);
+  });
+}
+
+
+/* ---------- SAVE PROFILE + REDIRECT ---------- */
+window.saveProfile = async function(){
+
+  const user = auth.currentUser;
+  if(!user) return alert("Login first!");
+
+  let file=document.getElementById("profilePic").files[0];
+  let imageURL="";
+
+  if(file){
+    let storeRef = ref(storage,"profiles/"+user.uid+".jpg");
+    await uploadBytes(storeRef,file);
+    imageURL = await getDownloadURL(storeRef);
+  }
+
+  await setDoc(doc(db,"students",user.uid),{
+    uid:user.uid,
+    email:user.email,
+    name:document.getElementById("name").value,
+    age:document.getElementById("age").value,
+    complexion:document.getElementById("complexion").value,
+    faculty:document.getElementById("faculty").value,
+    department:document.getElementById("department").value,
+    about:document.getElementById("about").value,
+    profilePic:imageURL
+  });
+
+  alert("✔ Profile saved successfully!");
+  window.location.href="directory.html"; // 🔥 now it goes here
+}
+</script>
+
+</body>
+</html>
