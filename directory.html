@@ -8,7 +8,20 @@
 
 <style>
 body{font-family:Arial;background:#eef3f8;margin:0;}
-header{background:#005bff;padding:15px;text-align:center;color:white;font-size:20px;}
+header{
+  background:#005bff;padding:15px;text-align:center;color:white;
+  font-size:20px;position:relative;
+}
+
+/* mini profile badge top-right */
+.user-badge{
+  position:absolute;right:15px;top:8px;
+  display:none;align-items:center;gap:8px;font-size:13px;
+}
+.user-badge img{
+  width:32px;height:32px;border-radius:50%;object-fit:cover;
+  border:2px solid #fff;
+}
 
 .nav{
   display:flex;justify-content:center;background:white;padding:10px;gap:15px;
@@ -58,7 +71,15 @@ select{width:100%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid 
 
 <body>
 
-<header>📍 RUN Student Directory</header>
+<header>
+  📍 RUN Student Directory
+
+  <!-- MINI PROFILE PIC TOP RIGHT -->
+  <div class="user-badge" id="userBadge">
+    <span id="badgeName"></span>
+    <img id="badgePic" src="default.png" alt="You">
+  </div>
+</header>
 
 <!-- Navigation -->
 <div class="nav">
@@ -111,8 +132,12 @@ select{width:100%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid 
 <!-- FIREBASE LOGIC -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getFirestore, collection, getDocs } 
-  from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { 
+  getFirestore, collection, getDocs, getDoc, doc 
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import {
+  getAuth, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
@@ -122,21 +147,35 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 let users = [];
 let selectedUser=null;
 
 
-/* LOAD USERS FROM FIRESTORE */
+/* LOAD USERS FROM FIRESTORE (dedupe by email) */
 async function fetchUsers(){
   users=[];
-  const get = await getDocs(collection(db,"students"));
-  get.forEach(d => users.push({uid:d.id, ...d.data()}));
+  const snap = await getDocs(collection(db,"students"));
+
+  const byEmail = {}; // to avoid double profiles from same email
+  snap.forEach(d => {
+    const data = { uid:d.id, ...d.data() };
+    if(data.email){
+      byEmail[data.email] = data;  // last one wins
+    }else{
+      // no email field, just push raw
+      users.push(data);
+    }
+  });
+
+  // add unique email profiles
+  users = users.concat(Object.values(byEmail));
 }
 await fetchUsers();
 
 
-/* FACULTY → DEPARTMENT MAPPING */
+/* FACULTY → DEPARTMENT MAPPING (already good) */
 const depts={
 "Faculty of Natural Sciences":["Computer Science","Applied Geophysics","Environmental Management & Toxicology","Geology","Industrial Chemistry","Microbiology","Meteorology","Physics with Electronics","Mathematics & Statistics"],
 "Faculty of Management Sciences":["Accounting","Banking & Finance","Business Administration","Insurance","Marketing","Public Administration","Transport Management"],
@@ -181,8 +220,8 @@ window.displayStudents=function(){
   list.forEach(s=>{
     box.innerHTML+=`
       <div class="student-card" onclick='openProfile(${JSON.stringify(s)})'>
-        <img src="${s.profilePic}">
-        <div><b>${s.name}</b><br>${s.department}</div>
+        <img src="${s.profilePic || 'default.png'}">
+        <div><b>${s.name || ''}</b><br>${s.department || ''}</div>
       </div>`;
   });
 }
@@ -192,13 +231,13 @@ window.displayStudents=function(){
 window.openProfile=function(s){
   selectedUser=s;
   document.getElementById("profileModal").style.display="flex";
-  document.getElementById("pPic").src=s.profilePic;
-  document.getElementById("pName").textContent=s.name;
-  document.getElementById("pAge").textContent=s.age;
-  document.getElementById("pComplexion").textContent=s.complexion;
-  document.getElementById("pDept").textContent=s.department;
-  document.getElementById("pFaculty").textContent=s.faculty;
-  document.getElementById("pAbout").textContent=s.about;
+  document.getElementById("pPic").src=s.profilePic || 'default.png';
+  document.getElementById("pName").textContent=s.name || "";
+  document.getElementById("pAge").textContent=s.age || "";
+  document.getElementById("pComplexion").textContent=s.complexion || "";
+  document.getElementById("pDept").textContent=s.department || "";
+  document.getElementById("pFaculty").textContent=s.faculty || "";
+  document.getElementById("pAbout").textContent=s.about || "";
 }
 
 
@@ -208,11 +247,30 @@ window.closeProfile=()=>document.getElementById("profileModal").style.display="n
 
 /* CHAT REDIRECT */
 window.startChat=function(){
+  if(!selectedUser) return;
   window.location.href="chat.html?user="+selectedUser.uid;
 }
 
 window.reload=()=>location.reload();
 displayStudents();
+
+
+/* MINI PROFILE BADGE (TOP RIGHT) */
+onAuthStateChanged(auth, async (user)=>{
+  if(!user) return;
+  try{
+    const snap = await getDoc(doc(db,"students",user.uid));
+    if(snap.exists()){
+      const data = snap.data();
+      const badge = document.getElementById("userBadge");
+      document.getElementById("badgeName").textContent = data.name || user.email;
+      document.getElementById("badgePic").src = data.profilePic || "default.png";
+      badge.style.display = "flex";
+    }
+  }catch(e){
+    console.error(e);
+  }
+});
 </script>
 
 </body>
