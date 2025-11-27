@@ -176,43 +176,52 @@ async function uploadToImgBB(file){
 }
 
 
-document.getElementById("saveBtn").onclick = async () => {
+/* 🔥 SAVE PROFILE BUTTON */
+document.getElementById("saveBtn").addEventListener("click", async () => {
   const user = auth.currentUser;
-  if (!user) return alert("Login first!");
+  if(!user){ alert("Please login first."); return; }
 
-  const pic = document.getElementById("profilePic").files[0];
-  if (!pic) return alert("Select profile picture!");
+  const nameEl = document.getElementById("name");
+  const ageEl = document.getElementById("age");
+  const compEl = document.getElementById("complexion");
+  const facEl = document.getElementById("faculty");
+  const depEl = document.getElementById("department");
+  const aboutEl = document.getElementById("about");
+  const picInput = document.getElementById("profilePic");
 
-  // upload to ImgBB (your existing function)
-  const imageURL = await uploadToImgBB(pic);
-
-  // 🔥 check if this email already has a profile
-  const studentsRef = collection(db, "students");
-  const q = query(studentsRef, where("email", "==", user.email));
-  const snap = await getDocs(q);
-
-  let docId = user.uid; // default to current uid
-  if (!snap.empty) {
-    // profile already exists → reuse that doc id
-    docId = snap.docs[0].id;
+  if(!nameEl.value || !ageEl.value || !facEl.value || !depEl.value){
+    alert("Please fill in name, age, faculty and department.");
+    return;
   }
 
-  await setDoc(doc(db, "students", docId), {
-    uid: docId,
-    name: document.getElementById("name").value,
-    age: document.getElementById("age").value,
-    complexion: document.getElementById("complexion").value,
-    faculty: document.getElementById("faculty").value,
-    department: document.getElementById("department").value,
-    about: document.getElementById("about").value,
-    profilePic: imageURL,
-    email: user.email
-  });
+  const file = picInput.files[0];
+  if(!file){
+    alert("Please select a profile picture.");
+    return;
+  }
 
-  alert("🎉 Profile Saved Successfully");
-  location.href = "directory.html";
-};
+  try{
+    const imageURL = await uploadToImgBB(file);
 
+    await setDoc(doc(db,"students",user.uid),{
+      uid:user.uid,
+      email:user.email,
+      name:nameEl.value,
+      age:ageEl.value,
+      complexion:compEl.value,
+      faculty:facEl.value,
+      department:depEl.value,
+      about:aboutEl.value,
+      profilePic:imageURL
+    });
+
+    alert("🎉 Profile saved successfully");
+    window.location.href = "directory.html";
+  }catch(err){
+    console.error(err);
+    alert("Error saving profile: " + err.message);
+  }
+});
 
 
 /* 🔒 OLD USERS SKIP THIS PAGE */
