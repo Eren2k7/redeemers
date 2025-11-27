@@ -1,162 +1,197 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/png" href="logo.fw.jpeg">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Complete Your Profile – Redeemer’s University</title>
+<title>Redeemer’s Profile Setup</title>
 
 <style>
-body{
-  font-family: Arial, sans-serif;
-  background:#eef1f7;
-  margin:0;
-  padding:0;
-}
-.container{
-  background:white;
-  max-width:450px;
-  margin:50px auto;
-  padding:25px;
-  border-radius:10px;
-  box-shadow:0 0 15px rgba(0,0,0,0.1);
-}
-h2{text-align:center;}
-input,select,textarea{
-  width:100%; padding:10px; margin-top:10px;
-  border:1px solid #ccc;border-radius:5px;
-}
-button{
-  width:100%;padding:12px;margin-top:15px;
-  background:#005bff;border:none;color:white;
-  font-size:17px;border-radius:5px;cursor:pointer;
-}
-button:hover{background:#003bb5;}
+    body{background:#0d1126;color:white;font-family:poppins;margin:0;padding:20px;text-align:center;}
+    .card{
+        width:410px;margin:auto;background:#12182f;padding:25px;border-radius:12px;
+        box-shadow:0 0 20px rgba(0,255,255,.2);
+    }
+    h2{color:#00eaff;margin-bottom:12px;}
+
+    select,input,textarea{
+        width:95%;margin-top:10px;padding:10px;background:#1a2548;border:1px solid #00eaff;
+        border-radius:6px;color:white;
+    }
+    button{
+        width:95%;margin-top:18px;padding:12px;background:#00eaff;color:black;font-weight:600;
+        border:none;border-radius:6px;font-size:16px;cursor:pointer;transition:.3s;
+    }
+    button:hover{background:#11ffee;}
+    
+    /* Upload Animation Box */
+    #uploadStatus{
+        display:none;margin-top:12px;padding:12px;border-radius:6px;font-size:15px;
+        animation:fadeIn .5s;
+    }
+    @keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+
+    /* Success Flash */
+    .successGlow{
+        animation:glow .8s ease-out 1;
+    }
+    @keyframes glow{
+        0%{box-shadow:0 0 0px #00ffbf;}
+        50%{box-shadow:0 0 25px #00ffbf;}
+        100%{box-shadow:0 0 5px #00ffbf;}
+    }
 </style>
 </head>
+
 <body>
+<div class="card" id="formCard">
+    <h2>Complete Your Profile</h2>
 
-<div class="container">
-  <h2>Student Profile Setup</h2>
+    <input id="name" placeholder="Full Name">
 
-  <input type="file" id="profilePic" accept="image/*">
-  <input type="text" id="name" placeholder="Full Name">
-  <input type="number" id="age" placeholder="Age">
+    <!-- AGE DROPDOWN -->
+    <select id="age">
+        <option value="">Select Age</option>
+        <script>
+            for(let i=15;i<=40;i++)document.write(`<option>${i}</option>`);
+        </script>
+    </select>
 
-  <select id="complexion">
-    <option value="">Complexion</option>
-    <option value="Fair">Fair</option>
-    <option value="Light Brown">Light Brown</option>
-    <option value="Dark">Dark</option>
-  </select>
+    <input id="complexion" placeholder="Complexion">
 
-  <select id="faculty" onchange="loadDepartments()">
-    <option>Select Faculty</option>
-    <option value="Faculty of Natural Sciences">Faculty of Natural Sciences</option>
-    <option value="Faculty of Management Sciences">Faculty of Management Sciences</option>
-    <option value="Faculty of Built Environment Studies">Faculty of Built Environment Studies</option>
-    <option value="Faculty of Humanities">Faculty of Humanities</option>
-    <option value="Faculty of Social Sciences">Faculty of Social Sciences</option>
-    <option value="Faculty of Engineering">Faculty of Engineering</option>
-    <option value="Faculty of Basic Medical Sciences">Faculty of Basic Medical Sciences</option>
-    <option value="Faculty of Law">Faculty of Law</option>
-  </select>
 
-  <select id="department">
-    <option>Choose Department</option>
-  </select>
+    <!-- 🔥 FULL FACULTY + AUTOMATIC DEPARTMENTS -->
+    <select id="faculty" onchange="loadDepartments()">
+        <option value="">Select Faculty</option>
+        <option value="Engineering">Engineering</option>
+        <option value="Law">Law</option>
+        <option value="Management Sciences">Management Sciences</option>
+        <option value="Natural Sciences">Natural Sciences</option>
+        <option value="Social Sciences">Social Sciences</option>
+        <option value="Humanities">Humanities</option>
+        <option value="Basic Medical Sciences">Basic Medical Sciences</option>
+        <option value="Environmental Sciences">Environmental Sciences</option>
+    </select>
 
-  <textarea id="about" rows="4" placeholder="About you..."></textarea>
+    <select id="department">
+        <option value="">Select Department</option>
+    </select>
 
-  <button onclick="saveProfile()">Save & Continue → Directory</button>
+
+    <textarea id="about" placeholder="Write about yourself..." rows="4"></textarea>
+
+    <label>Upload Profile Picture</label>
+    <input type="file" id="profilePic" accept="image/*">
+
+    <div id="uploadStatus"></div>
+
+    <button id="saveBtn">Save Profile</button>
 </div>
 
 
-<!-- FIREBASE v12.5.0 (correct format) -->
+
+<!--------- FIREBASE + IMGBB ---------->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
-  authDomain: "eren-c4b30.firebaseapp.com",
-  projectId: "eren-c4b30",
-  storageBucket: "eren-c4b30.appspot.com",   // FIXED
-  messagingSenderId: "91279547740",
-  appId: "1:91279547740:web:11cc9f1eb5423f94993599"
+const app = initializeApp({
+    apiKey:"AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
+    authDomain:"eren-c4b30.firebaseapp.com",
+    projectId:"eren-c4b30"
+});
+const auth=getAuth(app);const db=getFirestore(app);
+
+
+/* 🔥 Faculty → Department Auto Loader */
+const departmentData={
+    "Engineering":[ "Electrical", "Mechanical","Civil","Computer Engineering","Software Engineering" ],
+    "Law":[ "Constitutional Law","Business & Corporate Law","International Law" ],
+    "Management Sciences":[ "Accounting","Business Admin","Finance","Marketing" ],
+    "Natural Sciences":[ "Computer Science","Microbiology","Biochemistry","Chemistry","Physics" ],
+    "Social Sciences":[ "Mass Communication","Economics","Political Science","Psychology" ],
+    "Humanities":[ "History","Linguistics","Philosophy","Religious Studies" ],
+    "Basic Medical Sciences":[ "Nursing","Anatomy","Physiology","Medical Laboratory Science" ],
+    "Environmental Sciences":[ "Architecture","Estate Management","Urban Planning" ]
+};
+
+window.loadDepartments=()=>{
+    const fac=document.getElementById("faculty").value;
+    const dep=document.getElementById("department");
+    dep.innerHTML="<option>Select Department</option>";
+    if(departmentData[fac]){
+        departmentData[fac].forEach(d=>{
+            dep.innerHTML+=`<option>${d}</option>`;
+        });
+    }
 };
 
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+
+/* 🔥 IMGBB Upload */
+async function uploadToImgBB(file){
+    let box=document.getElementById("uploadStatus");
+    box.style.display="block";
+    box.innerHTML="⏳ Uploading picture...";
+
+    const form=new FormData();
+    form.append("image",file);
+
+    const res = await fetch("https://api.imgbb.com/1/upload?key=efd9e3255bb9ff4053c312897dd157c7",{
+        method:"POST",
+        body:form
+    });
+
+    const data=await res.json();
+
+    box.innerHTML="✔ Upload Complete!";
+    document.getElementById("formCard").classList.add("successGlow");
+
+    return data.data.url;
+}
 
 
-/* ---------- redirect if user already filled profile ---------- */
-onAuthStateChanged(auth, async(user)=>{
-  if(!user) return window.location.href="login.html";
 
-  const check = await getDoc(doc(db,"students",user.uid));
-  if(check.exists()) window.location.href="directory.html"; // 🔥 go to directory automatically
+/* 🔥 SAVE PROFILE */
+document.getElementById("saveBtn").onclick=async()=>{
+
+    const user=auth.currentUser;
+    if(!user) return alert("Login first!");
+
+    const pic=document.getElementById("profilePic").files[0];
+    if(!pic) return alert("Select profile picture!");
+
+    const imageURL=await uploadToImgBB(pic);
+
+    await setDoc(doc(db,"students",user.uid),{
+        name:document.getElementById("name").value,
+        age:document.getElementById("age").value,
+        complexion:document.getElementById("complexion").value,
+        faculty:document.getElementById("faculty").value,
+        department:document.getElementById("department").value,
+        about:document.getElementById("about").value,
+        profilePic:imageURL,
+        email:user.email
+    });
+
+    alert("🎉 Profile Saved Successfully");
+    location.href="directory.html"; // move next
+}
+/* ⚠ Prevent already registered users from seeing this page */
+import { getDoc, doc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+auth.onAuthStateChanged(async(user)=>{
+    if(!user) return; // not logged in
+
+    const ref = doc(db,"students",user.uid);
+    const snap = await getDoc(ref);
+
+    if(snap.exists()){ 
+        // Profile already created
+        alert("Welcome back " + snap.data().name);
+        window.location.href="directory.html"; // 🔥 redirect
+    }
 });
 
-
-/* ---------- load departments dynamically ---------- */
-window.loadDepartments = function(){
-  const fac = document.getElementById("faculty").value;
-  const dept = document.getElementById("department"); dept.innerHTML="";
-
-  const options = {
-"Faculty of Natural Sciences":["Computer Science","Applied Geophysics","Environmental Management & Toxicology","Geology","Industrial Chemistry","Microbiology","Meteorology","Physics with Electronics","Mathematics & Statistics"],
-"Faculty of Management Sciences":["Accounting","Banking & Finance","Business Administration","Insurance","Marketing","Public Administration","Transport Management"],
-"Faculty of Built Environment Studies":["Architecture","Building Technology","Estate Management","Quantity Surveying","Urban & Regional Planning","Surveying & Geoinformatics"],
-"Faculty of Humanities":["Christian Religious Studies","English","French","History & International Studies","Philosophy","Theatre Arts"],
-"Faculty of Social Sciences":["Economics","Mass Communication","Psychology","Political Science","Sociology","Tourism","Social Work"],
-"Faculty of Engineering":["Civil Engineering","Computer Engineering","Electrical & Electronics Engineering","Mechanical Engineering"],
-"Faculty of Basic Medical Sciences":["Biochemistry","Human Anatomy","Human Physiology","Nursing","Physiotherapy"],
-"Faculty of Law":["Law"]
-  };
-
-  (options[fac]||[]).forEach(x=>{
-    let o=document.createElement("option");
-    o.textContent=x; o.value=x; dept.appendChild(o);
-  });
-}
-
-
-/* ---------- SAVE PROFILE + REDIRECT ---------- */
-window.saveProfile = async function(){
-
-  const user = auth.currentUser;
-  if(!user) return alert("Login first!");
-
-  let file=document.getElementById("profilePic").files[0];
-  let imageURL="";
-
-  if(file){
-    let storeRef = ref(storage,"profiles/"+user.uid+".jpg");
-    await uploadBytes(storeRef,file);
-    imageURL = await getDownloadURL(storeRef);
-  }
-
-  await setDoc(doc(db,"students",user.uid),{
-    uid:user.uid,
-    email:user.email,
-    name:document.getElementById("name").value,
-    age:document.getElementById("age").value,
-    complexion:document.getElementById("complexion").value,
-    faculty:document.getElementById("faculty").value,
-    department:document.getElementById("department").value,
-    about:document.getElementById("about").value,
-    profilePic:imageURL
-  });
-
-  alert("✔ Profile saved successfully!");
-  window.location.href="directory.html"; // 🔥 now it goes here
-}
 </script>
 
 </body>

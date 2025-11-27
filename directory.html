@@ -1,224 +1,139 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/png" href="logo.fw.jpeg">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RUN Directory</title>
+<title>Student Directory</title>
 
 <style>
-body{font-family:Arial;background:#eef3f8;margin:0;}
-header{background:#005bff;padding:15px;text-align:center;color:white;font-size:20px;}
+    body{
+        background:#0d1126;
+        font-family:poppins;
+        color:white;
+        text-align:center;
+        margin:0; padding:20px;
+    }
+    h2{color:#00eaff;margin-bottom:15px;}
 
-.nav{
-  display:flex;justify-content:center;background:white;padding:10px;gap:15px;
-  border-bottom:2px solid #ccc;
-}
-.nav button{
-  padding:10 18px;border:none;border-radius:5px;cursor:pointer;font-size:15px;
-  background:#d7e5ff;
-}
-.nav button:hover{background:#005bff;color:white;}
+    select{
+        background:#14203e;border:1px solid #00eaff;color:white;
+        padding:10px;border-radius:6px;margin:5px;width:180px;
+    }
 
-.container{max-width:900px;margin:auto;padding:20px;}
-select{width:100%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid #ccc;}
+    .grid{
+        margin-top:25px;
+        display:grid;
+        grid-template-columns:repeat(auto-fit,200px);
+        gap:22px;justify-content:center;
+    }
 
-.student-card{
-  background:white;padding:10px;border-radius:8px;margin:8px 0;display:flex;gap:15px;
-  align-items:center;cursor:pointer;border:1px solid #ddd;
-}
-
-.student-card img{
-  width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #005bff;
-}
-
-.student-card:hover{background:#eaf1ff;}
-#noResults{font-style:italic;color:#555;margin-top:10px;display:none;}
-
-
-/* ───────────── POPUP PROFILE ───────────── */
-#profileModal{
-  position:fixed;top:0;left:0;width:100%;height:100%;
-  background:rgba(0,0,0,0.65);display:none;justify-content:center;align-items:center;
-}
-
-.modal-box{
-  background:white;width:330px;padding:20px;border-radius:10px;text-align:center;
-}
-.modal-box img{
-  width:130px;height:130px;border-radius:50%;object-fit:cover;
-  margin-bottom:15px;border:3px solid #005bff;
-}
-
-.chat-btn, .close{
-  width:100%;padding:10;margin-top:10;border:none;border-radius:5px;font-size:16px;
-}
-.chat-btn{background:#005bff;color:white;}
-.close{background:red;color:white;}
+    .card{
+        background:#12182f;padding:12px;border-radius:10px;
+        box-shadow:0 0 12px rgba(0,255,255,.18);
+        cursor:pointer;transition:.3s;
+    }
+    .card:hover{transform:scale(1.05);box-shadow:0 0 25px rgba(0,255,255,.45);}
+    img{width:100%;height:180px;object-fit:cover;border-radius:8px;}
+    .name{font-size:17px;font-weight:600;margin-top:8px;color:#00eaff;}
+    .dept{font-size:13px;color:#9cdcff;}
 </style>
 </head>
+
 <body>
 
-<header>📍 RUN Student Directory</header>
+<h2>Redeemer's Student Directory</h2>
 
-<div class="nav">
-  <button onclick="showTab('faculty')">Faculties</button>
-  <button onclick="window.location.href='chat.html'">Chat</button>
-</div>
+<!-- 🔥 Filter System -->
+<select id="filterFaculty" onchange="filterStudents()">
+    <option value="">All Faculties</option>
+    <option>Engineering</option>
+    <option>Law</option>
+    <option>Management Sciences</option>
+    <option>Natural Sciences</option>
+    <option>Social Sciences</option>
+    <option>Humanities</option>
+    <option>Basic Medical Sciences</option>
+    <option>Environmental Sciences</option>
+</select>
 
-<div class="container" id="facultyTab">
-  <select id="facultySelect" onchange="loadDepartments()">
-    <option value="">Select Faculty</option>
-    <option value="Faculty of Natural Sciences">Faculty of Natural Sciences</option>
-    <option value="Faculty of Management Sciences">Faculty of Management Sciences</option>
-    <option value="Faculty of Built Environment Studies">Faculty of Built Environment Studies</option>
-    <option value="Faculty of Humanities">Faculty of Humanities</option>
-    <option value="Faculty of Social Sciences">Faculty of Social Sciences</option>
-    <option value="Faculty of Engineering">Faculty of Engineering</option>
-    <option value="Faculty of Basic Medical Sciences">Faculty of Basic Medical Sciences</option>
-    <option value="Faculty of Law">Faculty of Law</option>
-  </select>
+<select id="filterDepartment" onchange="filterStudents()">
+    <option value="">All Departments</option>
+</select>
 
-  <select id="departmentSelect" onchange="loadStudents()">
-    <option value="">Select Department</option>
-  </select>
-
-  <div id="studentList"></div>
-  <p id="noResults">No registered students yet.</p>
-</div>
+<div class="grid" id="studentGrid"></div>
 
 
-<!-- ───────────── POPUP ───────────── -->
-<div id="profileModal">
-  <div class="modal-box">
-    <img id="pPic">
-    <h3 id="pName"></h3>
 
-    <p><b>Age:</b> <span id="pAge"></span></p>
-    <p><b>Complexion:</b> <span id="pComplexion"></span></p>
-    <p><b>Department:</b> <span id="pDept"></span></p>
-    <p><b>Faculty:</b> <span id="pFaculty"></span></p>
-    <p id="pAbout"></p>
-
-    <button class="chat-btn" id="chatBtn">Message</button>
-    <button class="close" onclick="closeProfile()">Close</button>
-  </div>
-</div>
-
-
-<!-- FIREBASE -->
+<!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getFirestore, collection, getDocs } 
-  from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-  apiKey: "AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
-  authDomain: "eren-c4b30.firebaseapp.com",
-  projectId: "eren-c4b30",
-  storageBucket: "eren-c4b30.appspot.com",   // FIXED
-  messagingSenderId: "91279547740",
-  appId: "1:91279547740:web:11cc9f1eb5423f94993599"
-};
+const app = initializeApp({
+    apiKey:"AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
+    authDomain:"eren-c4b30.firebaseapp.com",
+    projectId:"eren-c4b30"
+});
+const db = getFirestore(app);
 
 
-const app=initializeApp(firebaseConfig);
-const db=getFirestore(app);
-
-let allUsers=[]; let selectedUser=null;
+let allStudents = [];
 
 
-/* Fetch all students */
-async function loadUsers(){
-  const snap = await getDocs(collection(db,"students"));
-  snap.forEach(d => allUsers.push(d.data()));
-}
-await loadUsers();
-
-
-/* Faculty → Department loader */
-window.loadDepartments=function(){
-  const fac=document.getElementById("facultySelect").value;
-  const dept=document.getElementById("departmentSelect"); dept.innerHTML="";
-
-  const list={
-"Faculty of Natural Sciences":["Computer Science","Applied Geophysics","Environmental Management & Toxicology","Geology","Industrial Chemistry","Microbiology","Meteorology","Physics with Electronics","Mathematics & Statistics"],
-"Faculty of Management Sciences":["Accounting","Banking & Finance","Business Administration","Insurance","Marketing","Public Administration","Transport Management"],
-"Faculty of Built Environment Studies":["Architecture","Building Technology","Estate Management","Quantity Surveying","Urban & Regional Planning","Surveying & Geoinformatics"],
-"Faculty of Humanities":["Christian Religious Studies","English","French","History & International Studies","Philosophy","Theatre Arts"],
-"Faculty of Social Sciences":["Economics","Mass Communication","Psychology","Political Science","Sociology","Tourism","Social Work"],
-"Faculty of Engineering":["Civil Engineering","Computer Engineering","Electrical & Electronics Engineering","Mechanical Engineering"],
-"Faculty of Basic Medical Sciences":["Biochemistry","Human Anatomy","Human Physiology","Nursing","Physiotherapy"],
-"Faculty of Law":["Law"]
-  };
-
-  (list[fac]||[]).forEach(x=>{
-    let op=document.createElement("option"); op.value=x; op.textContent=x;
-    dept.appendChild(op);
-  });
-
-  document.getElementById("studentList").innerHTML="";
-  document.getElementById("noResults").style.display="none";
-};
-
-
-/* Display students */
-window.loadStudents=function(){
-  const faculty=document.getElementById("facultySelect").value;
-  const department=document.getElementById("departmentSelect").value;
-  const box=document.getElementById("studentList"); box.innerHTML="";
-
-  const results=allUsers.filter(u=>u.faculty===faculty&&u.department===department);
-
-  if(results.length===0){
-    document.getElementById("noResults").style.display="block";
-    return;
-  }else document.getElementById("noResults").style.display="none";
-
-  results.forEach(u=>{
-    let card=document.createElement("div");
-    card.className="student-card";
-    card.onclick=()=>showProfile(u);
-    card.innerHTML=`
-      <img src="${u.profilePic || 'default.png'}">
-      <div><b>${u.name}</b><br>${u.department}</div>
-    `;
-    box.appendChild(card);
-  });
-};
-
-
-/* Show profile popup */
-window.showProfile=function(u){
-  selectedUser=u;
-  document.getElementById("pPic").src=u.profilePic || 'default.png';
-  document.getElementById("pName").textContent=u.name;
-  document.getElementById("pAge").textContent=u.age;
-  document.getElementById("pComplexion").textContent=u.complexion;
-  document.getElementById("pDept").textContent=u.department;
-  document.getElementById("pFaculty").textContent=u.faculty;
-  document.getElementById("pAbout").textContent=u.about;
-
-  document.getElementById("profileModal").style.display="flex";
-
-  document.getElementById("chatBtn").onclick=()=>startChat(u.uid);
-};
-
-
-/* Close modal */
-window.closeProfile=function(){
-  document.getElementById("profileModal").style.display="none";
-};
-
-
-/* Prepare chat redirect */
-function startChat(uid){
-  window.location.href="chat.html?user="+uid; // 🔥 will chat 1-on-1 later
+/* Load students from Firestore */
+async function loadStudents(){
+    const snap = await getDocs(collection(db,"students"));
+    snap.forEach(doc => allStudents.push({uid:doc.id, ...doc.data()}));
+    displayStudents(allStudents);
+    loadDepartmentsDropdown();
 }
 
 
-/* Default visible tab */
-window.showTab = tab => document.getElementById("facultyTab").style.display="block";
+/* Display on page */
+function displayStudents(list){
+    const grid=document.getElementById("studentGrid");
+    grid.innerHTML="";
+
+    list.forEach(s=>{
+        grid.innerHTML+=`
+        <div class="card" onclick="openProfile('${s.uid}')">
+            <img src="${s.profilePic}">
+            <div class="name">${s.name}</div>
+            <div class="dept">${s.department} - ${s.faculty}</div>
+        </div>`;
+    });
+}
+
+
+/* Open user profile */
+window.openProfile=(uid)=>{
+    location.href="profile-view.html?uid="+uid;
+}
+
+
+
+/* Filter & Update */
+function filterStudents(){
+    const fac=document.getElementById("filterFaculty").value;
+    const dep=document.getElementById("filterDepartment").value;
+
+    let filtered=allStudents.filter(s=>
+        (fac==="" || s.faculty===fac) &&
+        (dep==="" || s.department===dep)
+    );
+
+    displayStudents(filtered);
+}
+
+
+/* Auto department dropdown from DB */
+function loadDepartmentsDropdown(){
+    const unique = [...new Set(allStudents.map(s=>s.department))];
+    const select=document.getElementById("filterDepartment");
+    unique.forEach(d => select.innerHTML += `<option>${d}</option>`);
+}
+
+
+loadStudents();
 </script>
 
 </body>
