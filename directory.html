@@ -84,7 +84,7 @@ select{width:100%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid 
 <!-- Navigation -->
 <div class="nav">
   <button onclick="reload()">Refresh</button>
-  <button onclick="window.location.href='chat.html'">Chat</button>
+  <button onclick="window.location.href='chatlist.html'">Chat</button>
 </div>
 
 <div class="container">
@@ -248,7 +248,7 @@ window.closeProfile=()=>document.getElementById("profileModal").style.display="n
 /* CHAT REDIRECT */
 window.startChat=function(){
   if(!selectedUser) return;
-  window.location.href="chat.html?user="+selectedUser.uid;
+  window.location.href="chatlist.html?user="+selectedUser.uid;
 }
 
 window.reload=()=>location.reload();

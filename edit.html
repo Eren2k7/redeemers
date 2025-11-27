@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Edit Profile — RUN Messenger</title>
+
+<style>
+body {
+    background: #0a1014;
+    color: white;
+    font-family: Arial;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.box {
+    background: #111b21;
+    padding: 25px;
+    border-radius: 14px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 0 15px #00ffc65e;
+}
+
+.box h2 {
+    color: #00ffc6;
+}
+
+input, button {
+    width: 90%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    background: #152026;
+    color: white;
+    font-size: 15px;
+}
+
+button {
+    background: #00ffc6;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #07ffd1;
+}
+
+label {
+    font-size: 14px;
+    opacity: .8;
+}
+
+.preview {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #00ffc6;
+    margin-top: 10px;
+}
+
+.wall-prev {
+    width: 90%;
+    height: 120px;
+    border-radius: 10px;
+    margin-top: 10px;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #00ffc6;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+    <h2>Edit Your Profile</h2>
+
+    <label>Change Name</label>
+    <input id="name">
+
+    <label>Change Profile Picture</label>
+    <input type="file" id="pfp" accept="image/*">
+    <img id="pfpPrev" class="preview">
+
+    <label>Change Chat Wallpaper</label>
+    <input type="file" id="wall" accept="image/*">
+    <div id="wallPrev" class="wall-prev"></div>
+
+    <button onclick="saveChanges()">Save</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, updateDoc } 
+from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL }
+from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
+
+// Initialize Firebase
+const app = initializeApp({
+  apiKey: "AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
+  authDomain: "eren-c4b30.firebaseapp.com",
+  projectId: "eren-c4b30",
+  storageBucket: "eren-c4b30.appspot.com"
+});
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let uid = null;
+let userData = null;
+
+// DOM Elements
+const name = document.getElementById("name");
+const pfp = document.getElementById("pfp");
+const pfpPrev = document.getElementById("pfpPrev");
+const wall = document.getElementById("wall");
+const wallPrev = document.getElementById("wallPrev");
+
+/* LOAD USER DATA */
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        uid = user.uid;
+        const snap = await getDoc(doc(db, "students", uid));
+        userData = snap.data();
+
+        // Populate fields with user data
+        name.value = userData.name || "";
+        pfpPrev.src = userData.profilePic || "";
+        wallPrev.style.backgroundImage = `url('${userData.wallpaper || ""}')`;
+    } else {
+        alert("User not logged in!");
+        location.href = "login.html";
+    }
+});
+
+/* PREVIEW SELECTED MEDIA */
+pfp.addEventListener("change", (e) => {
+    if (e.target.files[0]) {
+        pfpPrev.src = URL.createObjectURL(e.target.files[0]);
+    }
+});
+
+wall.addEventListener("change", (e) => {
+    if (e.target.files[0]) {
+        wallPrev.style.backgroundImage = `url('${URL.createObjectURL(e.target.files[0])}')`;
+    }
+});
+
+/* SAVE ALL CHANGES */
+async function saveChanges() {
+    if (!uid || !userData) {
+        alert("User data not loaded!");
+        return;
+    }
+
+    let newPFP = userData.profilePic;
+    let newWall = userData.wallpaper;
+
+    try {
+        if (pfp.files[0]) {
+            const pfpRef = ref(storage, "pfp/" + uid + ".jpg");
+            await uploadBytes(pfpRef, pfp.files[0]);
+            newPFP = await getDownloadURL(pfpRef);
+        }
+
+        if (wall.files[0]) {
+            const wallRef = ref(storage, "wallpaper/" + uid + ".jpg");
+            await uploadBytes(wallRef, wall.files[0]);
+            newWall = await getDownloadURL(wallRef);
+        }
+
+        await updateDoc(doc(db, "students", uid), {
+            name: name.value,
+            profilePic: newPFP,
+            wallpaper: newWall
+        });
+
+        alert("✔ Profile Updated!");
+        location.href = "chatlist.html";
+    } catch (error) {
+        console.error("Error saving changes:", error);
+        alert("❌ Failed to save changes: " + error.message);
+    }
+}
+</script>
+
+</body>
+</html>
