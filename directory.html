@@ -1,139 +1,218 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Student Directory</title>
+<link rel="icon" type="image/png" href="logo.fw.jpeg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RUN Directory</title>
 
 <style>
-    body{
-        background:#0d1126;
-        font-family:poppins;
-        color:white;
-        text-align:center;
-        margin:0; padding:20px;
-    }
-    h2{color:#00eaff;margin-bottom:15px;}
+body{font-family:Arial;background:#eef3f8;margin:0;}
+header{background:#005bff;padding:15px;text-align:center;color:white;font-size:20px;}
 
-    select{
-        background:#14203e;border:1px solid #00eaff;color:white;
-        padding:10px;border-radius:6px;margin:5px;width:180px;
-    }
+.nav{
+  display:flex;justify-content:center;background:white;padding:10px;gap:15px;
+  border-bottom:2px solid #ccc;
+}
+.nav button{
+  padding:10px 18px;border:none;border-radius:5px;cursor:pointer;font-size:15px;
+  background:#d7e5ff;
+}
+.nav button:hover{background:#005bff;color:white;}
 
-    .grid{
-        margin-top:25px;
-        display:grid;
-        grid-template-columns:repeat(auto-fit,200px);
-        gap:22px;justify-content:center;
-    }
+.container{max-width:900px;margin:auto;padding:20px;}
+select{width:100%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid #ccc;}
 
-    .card{
-        background:#12182f;padding:12px;border-radius:10px;
-        box-shadow:0 0 12px rgba(0,255,255,.18);
-        cursor:pointer;transition:.3s;
-    }
-    .card:hover{transform:scale(1.05);box-shadow:0 0 25px rgba(0,255,255,.45);}
-    img{width:100%;height:180px;object-fit:cover;border-radius:8px;}
-    .name{font-size:17px;font-weight:600;margin-top:8px;color:#00eaff;}
-    .dept{font-size:13px;color:#9cdcff;}
+/* ───────── CARD DISPLAY ───────── */
+.student-card{
+  background:white;padding:10px;border-radius:8px;margin:8px 0;display:flex;gap:15px;
+  align-items:center;cursor:pointer;border:1px solid #ddd;transition:0.3s;
+}
+.student-card:hover{background:#eaf1ff;transform:scale(1.02);}
+
+.student-card img{
+  width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #005bff;
+}
+
+#noResults{font-style:italic;color:#555;margin-top:10px;display:none;}
+
+/* ───────── POPUP PROFILE ───────── */
+#profileModal{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.65);display:none;justify-content:center;align-items:center;
+}
+.modal-box{
+  background:white;width:330px;padding:20px;border-radius:10px;text-align:center;
+}
+.modal-box img{
+  width:130px;height:130px;border-radius:50%;object-fit:cover;
+  margin-bottom:15px;border:3px solid #005bff;
+}
+.chat-btn,.close{
+  width:100%;padding:10;margin-top:10;border:none;border-radius:5px;font-size:16px;
+}
+.chat-btn{background:#005bff;color:white;}
+.close{background:red;color:white;}
 </style>
 </head>
 
 <body>
 
-<h2>Redeemer's Student Directory</h2>
+<header>📍 RUN Student Directory</header>
 
-<!-- 🔥 Filter System -->
-<select id="filterFaculty" onchange="filterStudents()">
-    <option value="">All Faculties</option>
-    <option>Engineering</option>
-    <option>Law</option>
-    <option>Management Sciences</option>
-    <option>Natural Sciences</option>
-    <option>Social Sciences</option>
-    <option>Humanities</option>
-    <option>Basic Medical Sciences</option>
-    <option>Environmental Sciences</option>
-</select>
+<!-- Navigation -->
+<div class="nav">
+  <button onclick="reload()">Refresh</button>
+  <button onclick="window.location.href='chat.html'">Chat</button>
+</div>
 
-<select id="filterDepartment" onchange="filterStudents()">
-    <option value="">All Departments</option>
-</select>
+<div class="container">
+  
+  <!-- FACULTY SELECTION -->
+  <select id="facultySelect" onchange="loadDepartments()">
+    <option value="">Select Faculty</option>
+    <option>Faculty of Natural Sciences</option>
+    <option>Faculty of Management Sciences</option>
+    <option>Faculty of Built Environment Studies</option>
+    <option>Faculty of Humanities</option>
+    <option>Faculty of Social Sciences</option>
+    <option>Faculty of Engineering</option>
+    <option>Faculty of Basic Medical Sciences</option>
+    <option>Faculty of Law</option>
+  </select>
 
-<div class="grid" id="studentGrid"></div>
+  <!-- DEPARTMENT LOADS AFTER FACULTY -->
+  <select id="departmentSelect" onchange="displayStudents()">
+    <option value="">Select Department</option>
+  </select>
+
+  <div id="studentList"></div>
+  <p id="noResults">No registered students yet.</p>
+</div>
+
+<!-- PROFILE POPUP -->
+<div id="profileModal">
+  <div class="modal-box">
+    <img id="pPic">
+    <h3 id="pName"></h3>
+
+    <p><b>Age:</b> <span id="pAge"></span></p>
+    <p><b>Complexion:</b> <span id="pComplexion"></span></p>
+    <p><b>Department:</b> <span id="pDept"></span></p>
+    <p><b>Faculty:</b> <span id="pFaculty"></span></p>
+    <p id="pAbout"></p>
+
+    <button class="chat-btn" onclick="startChat()">Message</button>
+    <button class="close" onclick="closeProfile()">Close</button>
+  </div>
+</div>
 
 
-
-<!-- Firebase -->
+<!-- FIREBASE LOGIC -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs } 
+  from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
-const app = initializeApp({
-    apiKey:"AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
-    authDomain:"eren-c4b30.firebaseapp.com",
-    projectId:"eren-c4b30"
-});
+const firebaseConfig = {
+  apiKey: "AIzaSyAXZQi1Wdwf7oHRVapWNGgcCYtd4Dy5kQk",
+  authDomain: "eren-c4b30.firebaseapp.com",
+  projectId: "eren-c4b30"
+};
+
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+let users = [];
+let selectedUser=null;
 
-let allStudents = [];
+
+/* LOAD USERS FROM FIRESTORE */
+async function fetchUsers(){
+  users=[];
+  const get = await getDocs(collection(db,"students"));
+  get.forEach(d => users.push({uid:d.id, ...d.data()}));
+}
+await fetchUsers();
 
 
-/* Load students from Firestore */
-async function loadStudents(){
-    const snap = await getDocs(collection(db,"students"));
-    snap.forEach(doc => allStudents.push({uid:doc.id, ...doc.data()}));
-    displayStudents(allStudents);
-    loadDepartmentsDropdown();
+/* FACULTY → DEPARTMENT MAPPING */
+const depts={
+"Faculty of Natural Sciences":["Computer Science","Applied Geophysics","Environmental Management & Toxicology","Geology","Industrial Chemistry","Microbiology","Meteorology","Physics with Electronics","Mathematics & Statistics"],
+"Faculty of Management Sciences":["Accounting","Banking & Finance","Business Administration","Insurance","Marketing","Public Administration","Transport Management"],
+"Faculty of Built Environment Studies":["Architecture","Building Technology","Estate Management","Quantity Surveying","Urban & Regional Planning","Surveying & Geoinformatics"],
+"Faculty of Humanities":["Christian Religious Studies","English","French","History & International Studies","Philosophy","Theatre Arts"],
+"Faculty of Social Sciences":["Economics","Mass Communication","Psychology","Political Science","Sociology","Tourism","Social Work"],
+"Faculty of Engineering":["Civil Engineering","Computer Engineering","Electrical & Electronics Engineering","Mechanical Engineering"],
+"Faculty of Basic Medical Sciences":["Biochemistry","Human Anatomy","Human Physiology","Nursing","Physiotherapy"],
+"Faculty of Law":["Law"]
+};
+
+
+/* LOAD DEPARTMENTS WHEN FACULTY SELECTED */
+window.loadDepartments=function(){
+  const fac=document.getElementById("facultySelect").value;
+  const dep=document.getElementById("departmentSelect");
+  dep.innerHTML=`<option value="">Select Department</option>`;
+
+  (depts[fac]||[]).forEach(d=>dep.innerHTML+=`<option>${d}</option>`);
+
+  displayStudents();
 }
 
 
-/* Display on page */
-function displayStudents(list){
-    const grid=document.getElementById("studentGrid");
-    grid.innerHTML="";
+/* DISPLAY USERS MATCHING FACULTY + DEPT */
+window.displayStudents=function(){
+  const fac=document.getElementById("facultySelect").value;
+  const dep=document.getElementById("departmentSelect").value;
+  const box=document.getElementById("studentList");
+  box.innerHTML="";
 
-    list.forEach(s=>{
-        grid.innerHTML+=`
-        <div class="card" onclick="openProfile('${s.uid}')">
-            <img src="${s.profilePic}">
-            <div class="name">${s.name}</div>
-            <div class="dept">${s.department} - ${s.faculty}</div>
-        </div>`;
-    });
+  const list=users.filter(s=>
+    (!fac || s.faculty==fac) && (!dep || s.department==dep)
+  );
+
+  if(list.length===0){
+    document.getElementById("noResults").style.display="block";
+    return;
+  }
+  document.getElementById("noResults").style.display="none";
+
+  list.forEach(s=>{
+    box.innerHTML+=`
+      <div class="student-card" onclick='openProfile(${JSON.stringify(s)})'>
+        <img src="${s.profilePic}">
+        <div><b>${s.name}</b><br>${s.department}</div>
+      </div>`;
+  });
 }
 
 
-/* Open user profile */
-window.openProfile=(uid)=>{
-    location.href="profile-view.html?uid="+uid;
+/* OPEN PROFILE POPUP */
+window.openProfile=function(s){
+  selectedUser=s;
+  document.getElementById("profileModal").style.display="flex";
+  document.getElementById("pPic").src=s.profilePic;
+  document.getElementById("pName").textContent=s.name;
+  document.getElementById("pAge").textContent=s.age;
+  document.getElementById("pComplexion").textContent=s.complexion;
+  document.getElementById("pDept").textContent=s.department;
+  document.getElementById("pFaculty").textContent=s.faculty;
+  document.getElementById("pAbout").textContent=s.about;
 }
 
 
+/* CLOSE POPUP */
+window.closeProfile=()=>document.getElementById("profileModal").style.display="none";
 
-/* Filter & Update */
-function filterStudents(){
-    const fac=document.getElementById("filterFaculty").value;
-    const dep=document.getElementById("filterDepartment").value;
 
-    let filtered=allStudents.filter(s=>
-        (fac==="" || s.faculty===fac) &&
-        (dep==="" || s.department===dep)
-    );
-
-    displayStudents(filtered);
+/* CHAT REDIRECT */
+window.startChat=function(){
+  window.location.href="chat.html?user="+selectedUser.uid;
 }
 
-
-/* Auto department dropdown from DB */
-function loadDepartmentsDropdown(){
-    const unique = [...new Set(allStudents.map(s=>s.department))];
-    const select=document.getElementById("filterDepartment");
-    unique.forEach(d => select.innerHTML += `<option>${d}</option>`);
-}
-
-
-loadStudents();
+window.reload=()=>location.reload();
+displayStudents();
 </script>
 
 </body>
