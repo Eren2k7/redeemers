@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Eren TikTok Downloader</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* ---------- BASE ---------- */
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(rgba(0,0,0,.75), rgba(0,0,0,.85)),
+    url("https://files.catbox.moe/yyqr1i.png") center/cover no-repeat;
+  color: #fff;
+}
+
+/* ---------- CARD ---------- */
+.card {
+  background: rgba(15,15,15,.88);
+  padding: 28px;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 0 35px rgba(255,0,40,.4);
+  text-align: center;
+}
+
+h1 {
+  color: #ff002a;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #bbb;
+  margin-bottom: 18px;
+}
+
+/* ---------- INPUT ---------- */
+.input-wrap {
+  position: relative;
+}
+
+.input-wrap input {
+  width: 100%;
+  padding: 12px 38px 12px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 15px;
+}
+
+/* ---------- CLEAR BUTTON ---------- */
+.clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: #aaa;
+  cursor: pointer;
+  display: none;
+  user-select: none;
+}
+
+.clear-btn:hover {
+  color: #ff002a;
+}
+
+/* ---------- ACTION BUTTON ---------- */
+.paste-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: #222;
+  border: 1px solid #333;
+  color: #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.paste-btn:hover {
+  border-color: #ff002a;
+  color: #fff;
+}
+
+/* ---------- DOWNLOAD BUTTON ---------- */
+button#btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #ff002a, #7a0015);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- STATUS ---------- */
+.status {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+/* ---------- LOADER BAR ---------- */
+.loader {
+  display: none;
+  margin-top: 14px;
+  height: 6px;
+  width: 100%;
+  background: #2a2a2a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.loader::before {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, #ff002a, #ff4d6d);
+  animation: load 1.2s infinite;
+}
+
+@keyframes load {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+/* ---------- SHAKE ---------- */
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+.shake {
+  animation: shake 0.3s;
+  border: 1px solid #ff002a !important;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>EREN</h1>
+  <div class="subtitle">TikTok Downloader</div>
+
+  <div class="input-wrap">
+    <input id="url" placeholder="Paste TikTok video link" oninput="toggleClear()">
+    <span class="clear-btn" onclick="clearInput()">×</span>
+  </div>
+
+  <button class="paste-btn" onclick="pasteFromClipboard()">📋 Paste from clipboard</button>
+
+  <button id="btn" onclick="downloadVideo()">Download</button>
+
+  <div class="loader" id="loader"></div>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+/* 🔴 CHANGE THIS */
+const API_BASE = "https://YOUR-BACKEND-URL";
+
+/* ---------- UTIL ---------- */
+function isTikTokLink(url) {
+  return /^(https?:\/\/)?(www\.)?(tiktok\.com|vm\.tiktok\.com)/i.test(url);
+}
+
+/* ---------- CLEAR BUTTON ---------- */
+function clearInput() {
+  const input = document.getElementById("url");
+  input.value = "";
+  input.focus();
+  toggleClear();
+}
+
+function toggleClear() {
+  const input = document.getElementById("url");
+  const clearBtn = document.querySelector(".clear-btn");
+  clearBtn.style.display = input.value ? "block" : "none";
+}
+
+/* ---------- PASTE ---------- */
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const input = document.getElementById("url");
+    input.value = text.trim();
+    toggleClear();
+  } catch {
+    alert("Clipboard access denied");
+  }
+}
+
+/* ---------- DOWNLOAD ---------- */
+async function downloadVideo() {
+  const input = document.getElementById("url");
+  const url = input.value.trim();
+  const status = document.getElementById("status");
+  const btn = document.getElementById("btn");
+  const loader = document.getElementById("loader");
+
+  if (!url || !isTikTokLink(url)) {
+    status.innerText = "❌ Invalid TikTok link";
+    input.classList.add("shake");
+    setTimeout(() => input.classList.remove("shake"), 300);
+    return;
+  }
+
+  btn.disabled = true;
+  loader.style.display = "block";
+  status.innerText = "Downloading...";
+
+  try {
+    const res = await fetch(API_BASE + "/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+
+    if (!res.ok) throw new Error("Failed");
+
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "eren-tiktok.mp4";
+    a.click();
+
+    status.innerText = "✅ Download started";
+  } catch {
+    status.innerText = "❌ Download failed";
+  }
+
+  loader.style.display = "none";
+  btn.disabled = false;
+}
+</script>
+
+</body>
+</html>
